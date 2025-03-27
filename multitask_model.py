@@ -20,8 +20,9 @@ from transformers.models.deberta_v2.modeling_deberta_v2 import (
     _CONFIG_FOR_DOC,
     DebertaV2Model,
     ContextPooler,
-    DebertaV2StableDropout as StableDropout
+    # DebertaV2StableDropout as StableDropout
 )
+from torch.nn import Dropout as StableDropout
 
 from transformers.file_utils import (
     add_code_sample_docstrings,
