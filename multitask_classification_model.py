@@ -8,6 +8,7 @@ from transformers import DebertaV2Model, DebertaV2PreTrainedModel, DebertaV2Conf
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 import torch.nn as nn
+from transformers import Trainer
 
 
 class DebertaV2ForAIDetection(DebertaV2PreTrainedModel):
@@ -90,3 +91,20 @@ class DebertaV2ForAIDetection(DebertaV2PreTrainedModel):
             "ai_model_logits": ai_model_logits,
             "loss": loss,
         }
+
+
+
+
+class MultiTaskTrainer(Trainer):
+    def compute_loss(self, model, inputs, return_outputs=False):
+        # Forward pass
+        outputs = model(
+            input_ids=inputs.get('input_ids'),
+            attention_mask=inputs.get('attention_mask'),
+            token_type_ids=inputs.get('token_type_ids'),
+            human_ai_labels=inputs.get('human_ai_labels'),
+            ai_model_labels=inputs.get('ai_model_labels')
+        )
+
+        # Return loss and outputs if needed
+        return (outputs['loss'], outputs) if return_outputs else outputs['loss']
