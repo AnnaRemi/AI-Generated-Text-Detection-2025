@@ -1,17 +1,14 @@
 """
-Implementation borrowed from transformers package and extended to support multiple prediction heads:
-
-https://github.com/huggingface/transformers/blob/main/src/transformers/models/deberta_v2/modeling_deberta_v2.py
+Implementation of DebertaV2 with multiple prediction heads and LoRA adapters for each head using PEFT
 """
 
 from transformers import DebertaV2Model, DebertaV2PreTrainedModel, DebertaV2Config
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 import torch.nn as nn
-from transformers import Trainer
+from peft import LoraConfig, get_peft_model, TaskType
 
-
-class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
+class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
     def __init__(self, config, num_ai_models):
         super().__init__(config)
 
@@ -43,26 +40,15 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
             attention_mask=None,
             token_type_ids=None,
             position_ids=None,
-            inputs_embeds=None,  # Add this line to handle inputs_embeds
             human_ai_labels=None,  # Binary labels (0=human, 1=AI)
             ai_model_labels=None,  # Model labels (if AI)
             **kwargs
     ):
-        # Filter out unexpected kwargs that shouldn't go to DeBERTa
-        deberta_kwargs = {
-            'input_ids': input_ids,
-            'attention_mask': attention_mask,
-            'token_type_ids': token_type_ids,
-            'position_ids': position_ids,
-            'inputs_embeds': inputs_embeds,  # Pass inputs_embeds if provided
-        }
-
-        # Remove None values to avoid passing None to DeBERTa
-        deberta_kwargs = {k: v for k, v in deberta_kwargs.items() if v is not None}
-
         outputs = self.deberta(
-            **deberta_kwargs,
-            **{k: v for k, v in kwargs.items() if k in ['output_attentions', 'output_hidden_states']}
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            **kwargs
         )
 
         pooled_output = outputs.last_hidden_state[:, 0, :]  # [CLS] token
@@ -102,3 +88,35 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
             "ai_model_logits": ai_model_logits,
             "loss": loss,
         }
+
+def add_lora_to_model(model, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
+    """
+    Add LoRA adapters to the classification heads of the model using PEFT
+
+    Args:
+        model: The DebertaV2ForAIDetection model
+        lora_rank: Rank of LoRA matrices
+        lora_alpha: Scaling factor for LoRA
+        lora_dropout: Dropout probability for LoRA layers
+
+    Returns:
+        model with LoRA adapters added to classification heads
+    """
+    # Define LoRA config for each head
+    lora_config = LoraConfig(
+        task_type=TaskType.SEQ_CLS,
+        r=lora_rank,
+        lora_alpha=lora_alpha,
+        lora_dropout=lora_dropout,
+        target_modules=["human_ai_head", "ai_model_head"],  # Apply LoRA to both heads
+        modules_to_save=["deberta"],  # Keep base model trainable if needed
+        bias="none",
+    )
+
+    # Convert model to use LoRA
+    lora_model = get_peft_model(model, lora_config)
+
+    # Print trainable parameters
+    lora_model.print_trainable_parameters()
+
+    return lora_model
