@@ -7,6 +7,7 @@ from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 import torch.nn as nn
 from peft import LoraConfig, get_peft_model, TaskType
+from peft.tuners.lora import LoraLayer
 
 class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
     def __init__(self, config, num_ai_models):
