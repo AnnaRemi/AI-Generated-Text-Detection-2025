@@ -13,48 +13,28 @@ from transformers import Trainer
 class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
     def __init__(self, config, num_ai_models, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
         super().__init__(config)
-
+        # Initialize base DeBERTa model
         self.deberta = DebertaV2Model(config)
-        self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # Define LoRA configurations for each head
+        # Apply LoRA to the base model
         lora_config = LoraConfig(
             r=lora_rank,
             lora_alpha=lora_alpha,
-            # target_modules=["query", "value"],
-            target_modules=["query_proj", "value_proj"],
+            target_modules=["query_proj", "value_proj", "key_proj"],  # Correct DeBERTa modules
             lora_dropout=lora_dropout,
             bias="none",
+            task_type="FEATURE_EXTRACTION"  # Important for non-sequence-classification tasks
         )
-
-        # Apply LoRA to the base model
         self.deberta = get_peft_model(self.deberta, lora_config)
 
-        # Task 1: Human (0) vs. AI (1) - Binary head with LoRA
+        # Regular dropout and classification heads (no LoRA)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+
+        # Task 1: Human (0) vs. AI (1) - Binary head
         self.human_ai_head = nn.Linear(config.hidden_size, 1)
 
-        # Apply LoRA to the binary head
-        human_ai_lora_config = LoraConfig(
-            r=lora_rank,
-            lora_alpha=lora_alpha,
-            target_modules=["human_ai_head"],
-            lora_dropout=lora_dropout,
-            bias="none",
-        )
-        self.human_ai_head = get_peft_model(self.human_ai_head, human_ai_lora_config)
-
-        # Task 2: If AI, classify which model - Multiclass head with LoRA
+        # Task 2: If AI, classify which model - Multiclass head
         self.ai_model_head = nn.Linear(config.hidden_size, num_ai_models)
-
-        # Apply LoRA to the multiclass head
-        ai_model_lora_config = LoraConfig(
-            r=lora_rank,
-            lora_alpha=lora_alpha,
-            target_modules=["ai_model_head"],
-            lora_dropout=lora_dropout,
-            bias="none",
-        )
-        self.ai_model_head = get_peft_model(self.ai_model_head, ai_model_lora_config)
 
         self.post_init()
 
