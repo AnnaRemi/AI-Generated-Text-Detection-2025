@@ -17,17 +17,18 @@ class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
         self.deberta = DebertaV2Model(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # Define LoRA configurations for each head
-        lora_config = LoraConfig(
-            r=lora_rank,
-            lora_alpha=lora_alpha,
-            target_modules=["query", "value"],  # Apply to attention layers
-            lora_dropout=lora_dropout,
-            bias="none",
-        )
-
-        # Apply LoRA to the base model
-        self.deberta = get_peft_model(self.deberta, lora_config)
+        # # Define LoRA configurations for each head
+        # lora_config = LoraConfig(
+        #     r=lora_rank,
+        #     lora_alpha=lora_alpha,
+        #     # target_modules=["query", "value"],
+        #     target_modules=["query_proj", "value_proj"],
+        #     lora_dropout=lora_dropout,
+        #     bias="none",
+        # )
+        #
+        # # Apply LoRA to the base model
+        # self.deberta = get_peft_model(self.deberta, lora_config)
 
         # Task 1: Human (0) vs. AI (1) - Binary head with LoRA
         self.human_ai_head = nn.Linear(config.hidden_size, 1)
