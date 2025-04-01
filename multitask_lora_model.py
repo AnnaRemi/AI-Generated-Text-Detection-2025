@@ -89,6 +89,7 @@ class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
             "loss": loss,
         }
 
+
 def add_lora_to_model(model, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
     """
     Add LoRA adapters to the classification heads of the model using PEFT
@@ -115,6 +116,29 @@ def add_lora_to_model(model, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
 
     # Convert model to use LoRA
     lora_model = get_peft_model(model, lora_config)
+
+    # Convert classification heads to LoraLayer for proper initialization
+    for name, module in lora_model.named_modules():
+        if isinstance(module, nn.Linear) and any(head_name in name for head_name in ["human_ai_head", "ai_model_head"]):
+            # Replace the linear layer with a LoraLayer
+            new_module = LoraLayer(
+                module.in_features,
+                module.out_features,
+                bias=module.bias is not None,
+                r=lora_rank,
+                lora_alpha=lora_alpha,
+                lora_dropout=lora_dropout,
+            )
+            new_module.weight = module.weight
+            if module.bias is not None:
+                new_module.bias = module.bias
+
+            # Get the parent module and attribute name
+            parent = lora_model
+            attrs = name.split('.')
+            for attr in attrs[:-1]:
+                parent = getattr(parent, attr)
+            setattr(parent, attrs[-1], new_module)
 
     # Print trainable parameters
     lora_model.print_trainable_parameters()
