@@ -42,6 +42,7 @@ class DebertaV2ForAIDetection(DebertaV2PreTrainedModel):
             input_ids=None,
             attention_mask=None,
             token_type_ids=None,
+            position_ids=None,
             human_ai_labels=None,  # Binary labels (0=human, 1=AI)
             ai_model_labels=None,  # Model labels (if AI)
             **kwargs
