@@ -4,9 +4,10 @@ from transformers import DebertaV2Model
 
 class DebertaV2ForAIDetection2(nn.Module):
     def __init__(self, config, num_ai_models=4):
-        super().__init__()
+        super().__init__(config)
+
         self.deberta = DebertaV2Model(config)  # Load DeBERTa backbone
-        self.dropout = nn.Dropout(0.1)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
         # Two classifiers: one for human vs AI, another for AI model classification
         self.human_ai_classifier = nn.Linear(config.hidden_size, 1)  # Binary classification
