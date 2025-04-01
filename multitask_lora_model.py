@@ -1,39 +1,78 @@
 """
-Implementation of DebertaV2 with multiple prediction heads and LoRA adapters for each head using PEFT
+Implementation with LoRA (Low-Rank Adaptation) applied to each prediction head
+using the PEFT library.
 """
 
 from transformers import DebertaV2Model, DebertaV2PreTrainedModel, DebertaV2Config
 from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 import torch.nn as nn
-from peft import LoraConfig, get_peft_model, TaskType
-from peft.tuners.lora import LoraLayer
+from peft import LoraConfig, get_peft_model
+from transformers import Trainer
 
 class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
-    def __init__(self, config, num_ai_models):
+    def __init__(self, config, num_ai_models, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
         super().__init__(config)
 
         self.deberta = DebertaV2Model(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # Task 1: Human (0) vs. AI (1) - Binary head
-        self.human_ai_head = nn.Linear(config.hidden_size, 1)  # Binary logits
+        # Define LoRA configurations for each head
+        lora_config = LoraConfig(
+            r=lora_rank,
+            lora_alpha=lora_alpha,
+            target_modules=["query", "value"],  # Apply to attention layers
+            lora_dropout=lora_dropout,
+            bias="none",
+        )
 
-        # Task 2: If AI, classify which model - Multiclass head
+        # Apply LoRA to the base model
+        self.deberta = get_peft_model(self.deberta, lora_config)
+
+        # Task 1: Human (0) vs. AI (1) - Binary head with LoRA
+        self.human_ai_head = nn.Linear(config.hidden_size, 1)
+
+        # Apply LoRA to the binary head
+        human_ai_lora_config = LoraConfig(
+            r=lora_rank,
+            lora_alpha=lora_alpha,
+            target_modules=["human_ai_head"],
+            lora_dropout=lora_dropout,
+            bias="none",
+        )
+        self.human_ai_head = get_peft_model(self.human_ai_head, human_ai_lora_config)
+
+        # Task 2: If AI, classify which model - Multiclass head with LoRA
         self.ai_model_head = nn.Linear(config.hidden_size, num_ai_models)
+
+        # Apply LoRA to the multiclass head
+        ai_model_lora_config = LoraConfig(
+            r=lora_rank,
+            lora_alpha=lora_alpha,
+            target_modules=["ai_model_head"],
+            lora_dropout=lora_dropout,
+            bias="none",
+        )
+        self.ai_model_head = get_peft_model(self.ai_model_head, ai_model_lora_config)
 
         self.post_init()
 
     def freeze_params(self, freeze):
         """
         Function for the possibility of separate training of the "head" and "body" of the BERT-like model.
+        Note: With LoRA, most parameters are frozen by default, only LoRA adapters are trainable.
         """
         if freeze:
             for param in self.deberta.parameters():
                 param.requires_grad = False
-        if not freeze:
-            for param in self.deberta.parameters():
-                param.requires_grad = True
+            for param in self.human_ai_head.parameters():
+                param.requires_grad = False
+            for param in self.ai_model_head.parameters():
+                param.requires_grad = False
+        else:
+            # With LoRA, we typically only want the LoRA parameters to be trainable
+            # The base model parameters remain frozen
+            pass
 
     def forward(
             self,
@@ -90,58 +129,17 @@ class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
             "loss": loss,
         }
 
-
-def add_lora_to_model(model, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
-    """
-    Add LoRA adapters to the classification heads of the model using PEFT
-
-    Args:
-        model: The DebertaV2ForAIDetection model
-        lora_rank: Rank of LoRA matrices
-        lora_alpha: Scaling factor for LoRA
-        lora_dropout: Dropout probability for LoRA layers
-
-    Returns:
-        model with LoRA adapters added to classification heads
-    """
-    # Define LoRA config for each head
-    lora_config = LoraConfig(
-        task_type=TaskType.SEQ_CLS,
-        r=lora_rank,
-        lora_alpha=lora_alpha,
-        lora_dropout=lora_dropout,
-        target_modules=["human_ai_head", "ai_model_head"],  # Apply LoRA to both heads
-        modules_to_save=["deberta"],  # Keep base model trainable if needed
-        bias="none",
-    )
-
-    # Convert model to use LoRA
-    lora_model = get_peft_model(model, lora_config)
-
-    # Convert classification heads to LoraLayer for proper initialization
-    for name, module in lora_model.named_modules():
-        if isinstance(module, nn.Linear) and any(head_name in name for head_name in ["human_ai_head", "ai_model_head"]):
-            # Replace the linear layer with a LoraLayer
-            new_module = LoraLayer(
-                module.in_features,
-                module.out_features,
-                bias=module.bias is not None,
-                r=lora_rank,
-                lora_alpha=lora_alpha,
-                lora_dropout=lora_dropout,
-            )
-            new_module.weight = module.weight
-            if module.bias is not None:
-                new_module.bias = module.bias
-
-            # Get the parent module and attribute name
-            parent = lora_model
-            attrs = name.split('.')
-            for attr in attrs[:-1]:
-                parent = getattr(parent, attr)
-            setattr(parent, attrs[-1], new_module)
-
-    # Print trainable parameters
-    lora_model.print_trainable_parameters()
-
-    return lora_model
+    def print_trainable_parameters(self):
+        """
+        Prints the number of trainable parameters in the model.
+        Useful for verifying LoRA is working correctly.
+        """
+        trainable_params = 0
+        all_param = 0
+        for _, param in self.named_parameters():
+            all_param += param.numel()
+            if param.requires_grad:
+                trainable_params += param.numel()
+        print(
+            f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param:.2f}"
+        )
