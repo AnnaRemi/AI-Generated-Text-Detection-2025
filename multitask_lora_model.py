@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import DebertaV2Model
 
-class DebertaV2ForAIDetection(nn.Module):
+class DebertaV2ForAIDetectionLora(nn.Module):
     def __init__(self, config, num_ai_models):
         super().__init__(config)
 
