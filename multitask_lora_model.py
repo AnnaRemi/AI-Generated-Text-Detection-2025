@@ -1,8 +1,17 @@
+"""
+Implementation borrowed from transformers package and extended to support multiple prediction heads:
+
+https://github.com/huggingface/transformers/blob/main/src/transformers/models/deberta_v2/modeling_deberta_v2.py
+"""
+
+from transformers import DebertaV2Model, DebertaV2PreTrainedModel, DebertaV2Config
+from transformers.modeling_outputs import SequenceClassifierOutput
 import torch
 import torch.nn as nn
-from transformers import DebertaV2Model, DebertaV2PreTrainedModel
+from transformers import Trainer
 
-class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
+
+class DebertaV2ForAIDetection(DebertaV2PreTrainedModel):
     def __init__(self, config, num_ai_models):
         super().__init__(config)
 
@@ -17,7 +26,6 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
 
         self.post_init()
 
-
     def freeze_params(self, freeze):
         """
         Function for the possibility of separate training of the "head" and "body" of the BERT-like model.
@@ -29,30 +37,64 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
             for param in self.deberta.parameters():
                 param.requires_grad = True
 
+    def forward(
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            human_ai_labels=None,  # Binary labels (0=human, 1=AI)
+            ai_model_labels=None,  # Model labels (if AI)
+            **kwargs
+    ):
+        # Remove labels from kwargs before passing to deberta
+        deberta_kwargs = {k: v for k, v in kwargs.items() if k != 'labels'}
 
-    def forward(self,
-                input_ids,
-                attention_mask,
-                position_ids=None,
-                human_ai_labels=None,
-                ai_model_labels=None):
+        outputs = self.deberta(
+            input_ids=input_ids,
+            attention_mask=attention_mask,
+            token_type_ids=token_type_ids,
+            **deberta_kwargs
+        )
 
-        outputs = self.deberta(input_ids=input_ids,
-                               attention_mask=attention_mask)
-        pooled_output = outputs.last_hidden_state[:, 0]  # Take [CLS] token representation
+        pooled_output = outputs.last_hidden_state[:, 0, :]  # [CLS] token
         pooled_output = self.dropout(pooled_output)
 
-        human_ai_logits = self.human_ai_classifier(pooled_output)
-        ai_model_logits = self.ai_model_classifier(pooled_output)
+        # Task 1: Human vs. AI logits
+        human_ai_logits = self.human_ai_head(pooled_output)
+
+        # Task 2: AI model logits (only used if AI)
+        ai_model_logits = self.ai_model_head(pooled_output)
 
         loss = None
-        if human_ai_labels is not None and ai_model_labels is not None:
-            loss_fct = nn.BCEWithLogitsLoss()  # For binary classification
-            human_ai_loss = loss_fct(human_ai_logits.view(-1), human_ai_labels.float())
+        if human_ai_labels is not None:
+            loss_fct = nn.BCEWithLogitsLoss()
+            human_ai_loss = loss_fct(
+                human_ai_logits.view(-1),
+                human_ai_labels.float().view(-1)
+            )
 
-            loss_fct_ce = nn.CrossEntropyLoss()  # For multi-class classification
-            ai_model_loss = loss_fct_ce(ai_model_logits, ai_model_labels)
+            # Mask AI model loss (only compute for AI-generated texts)
+            if ai_model_labels is not None:
+                ai_mask = (human_ai_labels == 1)  # Only AI samples
+                if ai_mask.any():
+                    loss_fct = nn.CrossEntropyLoss()
+                    ai_model_loss = loss_fct(
+                        ai_model_logits[ai_mask],
+                        ai_model_labels[ai_mask]
+                    )
+                    loss = human_ai_loss + ai_model_loss
+                else:
+                    loss = human_ai_loss
+            else:
+                loss = human_ai_loss
 
-            loss = human_ai_loss + ai_model_loss
+        return {
+            "human_ai_logits": human_ai_logits,
+            "ai_model_logits": ai_model_logits,
+            "loss": loss,
+        }
 
-        return {"loss": loss, "human_ai_logits": human_ai_logits, "ai_model_logits": ai_model_logits}
+
+
+
