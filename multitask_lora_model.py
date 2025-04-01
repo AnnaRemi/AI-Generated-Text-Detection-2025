@@ -34,8 +34,6 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
                 input_ids,
                 attention_mask,
                 position_ids=None,
-                token_type_ids=None,
-                inputs_embeds=None,
                 human_ai_labels=None,
                 ai_model_labels=None):
 
