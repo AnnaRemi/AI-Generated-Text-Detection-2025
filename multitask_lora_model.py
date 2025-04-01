@@ -43,18 +43,26 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
             attention_mask=None,
             token_type_ids=None,
             position_ids=None,
+            inputs_embeds=None,  # Add this line to handle inputs_embeds
             human_ai_labels=None,  # Binary labels (0=human, 1=AI)
             ai_model_labels=None,  # Model labels (if AI)
             **kwargs
     ):
-        # Remove labels from kwargs before passing to deberta
-        deberta_kwargs = {k: v for k, v in kwargs.items() if k != 'labels'}
+        # Filter out unexpected kwargs that shouldn't go to DeBERTa
+        deberta_kwargs = {
+            'input_ids': input_ids,
+            'attention_mask': attention_mask,
+            'token_type_ids': token_type_ids,
+            'position_ids': position_ids,
+            'inputs_embeds': inputs_embeds,  # Pass inputs_embeds if provided
+        }
+
+        # Remove None values to avoid passing None to DeBERTa
+        deberta_kwargs = {k: v for k, v in deberta_kwargs.items() if v is not None}
 
         outputs = self.deberta(
-            input_ids=input_ids,
-            attention_mask=attention_mask,
-            token_type_ids=token_type_ids,
-            **deberta_kwargs
+            **deberta_kwargs,
+            **{k: v for k, v in kwargs.items() if k in ['output_attentions', 'output_hidden_states']}
         )
 
         pooled_output = outputs.last_hidden_state[:, 0, :]  # [CLS] token
@@ -94,7 +102,3 @@ class DebertaV2ForAIDetectionLora(DebertaV2PreTrainedModel):
             "ai_model_logits": ai_model_logits,
             "loss": loss,
         }
-
-
-
-
