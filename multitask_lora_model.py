@@ -2,16 +2,20 @@ import torch
 import torch.nn as nn
 from transformers import DebertaV2Model
 
-class DebertaV2ForAIDetection2(nn.Module):
-    def __init__(self, config, num_ai_models=4):
+class DebertaV2ForAIDetection(nn.Module):
+    def __init__(self, config, num_ai_models):
         super().__init__(config)
 
-        self.deberta = DebertaV2Model(config)  # Load DeBERTa backbone
+        self.deberta = DebertaV2Model(config)
         self.dropout = nn.Dropout(config.hidden_dropout_prob)
 
-        # Two classifiers: one for human vs AI, another for AI model classification
-        self.human_ai_classifier = nn.Linear(config.hidden_size, 1)  # Binary classification
-        self.ai_model_classifier = nn.Linear(config.hidden_size, num_ai_models)  # Multi-class classification
+        # Task 1: Human (0) vs. AI (1) - Binary head
+        self.human_ai_head = nn.Linear(config.hidden_size, 1)  # Binary logits
+
+        # Task 2: If AI, classify which model - Multiclass head
+        self.ai_model_head = nn.Linear(config.hidden_size, num_ai_models)
+
+        self.post_init()
 
 
     def freeze_params(self, freeze):
