@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from transformers import DebertaV2Model
 
-class DebertaV2ForAIDetection(nn.Module):
+class DebertaV2ForAIDetection2(nn.Module):
     def __init__(self, config, num_ai_models=4):
         super().__init__()
         self.deberta = DebertaV2Model(config)  # Load DeBERTa backbone
