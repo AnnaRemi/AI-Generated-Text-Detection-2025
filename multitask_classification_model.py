@@ -37,6 +37,13 @@ class DebertaV2ForAIDetection(DebertaV2PreTrainedModel):
             for param in self.deberta.parameters():
                 param.requires_grad = True
 
+    def unfreeze_top_layers(self, n_layers):
+        """Unfreeze the top n layers (0 = none, all_layers = full unfreeze)"""
+        layers = self.deberta.encoder.layer[-n_layers:]
+        for layer in layers:
+            for param in layer.parameters():
+                param.requires_grad = True
+
     def forward(
             self,
             input_ids=None,
