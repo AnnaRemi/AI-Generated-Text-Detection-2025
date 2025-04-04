@@ -41,19 +41,20 @@ class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
     def freeze_params(self, freeze):
         """
         Function for the possibility of separate training of the "head" and "body" of the BERT-like model.
-        Note: With LoRA, most parameters are frozen by default, only LoRA adapters are trainable.
         """
         if freeze:
             for param in self.deberta.parameters():
                 param.requires_grad = False
-            for param in self.human_ai_head.parameters():
-                param.requires_grad = False
-            for param in self.ai_model_head.parameters():
-                param.requires_grad = False
-        else:
-            # With LoRA, we typically only want the LoRA parameters to be trainable
-            # The base model parameters remain frozen
-            pass
+        if not freeze:
+            for param in self.deberta.parameters():
+                param.requires_grad = True
+
+    def unfreeze_top_layers(self, n_layers):
+        """Unfreeze the top n layers (0 = none, all_layers = full unfreeze)"""
+        layers = self.deberta.encoder.layer[-n_layers:]
+        for layer in layers:
+            for param in layer.parameters():
+                param.requires_grad = True
 
     def forward(
             self,
@@ -124,3 +125,28 @@ class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
         print(
             f"trainable params: {trainable_params} || all params: {all_param} || trainable%: {100 * trainable_params / all_param:.2f}"
         )
+
+    def print_layer_info(self):
+        """
+        Prints the number of layers in the model and their trainable status.
+        Also shows total number of trainable parameters.
+        """
+        # Get the number of layers from the encoder
+        num_layers = len(self.deberta.encoder.layer)
+        print(f"\nModel Architecture Info:")
+        print(f"- Total layers in DeBERTa encoder: {num_layers}")
+        print(f"- LoRA rank: {self.deberta.peft_config['default'].r}")
+
+        # Count trainable vs frozen layers
+        trainable_layers = 0
+        for i, layer in enumerate(self.deberta.encoder.layer):
+            if any(p.requires_grad for p in layer.parameters()):
+                trainable_layers += 1
+                status = "Trainable"
+            else:
+                status = "Frozen"
+            print(f"  Layer {i + 1}/{num_layers}: {status}")
+
+        print(f"\n- Trainable layers: {trainable_layers}/{num_layers}")
+        print(f"- Trainable heads: Human-AI and {self.ai_model_head.out_features}-way AI classifier")
+        self.print_trainable_parameters()  # Reuse existing parameter counter
