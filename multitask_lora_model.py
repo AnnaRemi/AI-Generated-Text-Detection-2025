@@ -11,7 +11,7 @@ from peft import LoraConfig, get_peft_model
 from transformers import Trainer
 
 class DebertaV2ForAIDetectionWithLoRA(DebertaV2PreTrainedModel):
-    def __init__(self, config, num_ai_models, lora_rank=8, lora_alpha=16, lora_dropout=0.1):
+    def __init__(self, config, num_ai_models, lora_rank=8, lora_alpha=32, lora_dropout=0.1):
         super().__init__(config)
         # Initialize base DeBERTa model
         self.deberta = DebertaV2Model(config)
