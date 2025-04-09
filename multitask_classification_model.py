@@ -108,7 +108,6 @@ class DebertaV2ForAIDetection(DebertaV2PreTrainedModel):
         num_layers = len(self.deberta.encoder.layer)
         print(f"\nModel Architecture Info:")
         print(f"- Total layers in DeBERTa encoder: {num_layers}")
-        print(f"- LoRA rank: {self.deberta.peft_config['default'].r}")
 
         # Count trainable vs frozen layers
         trainable_layers = 0
