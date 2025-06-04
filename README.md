@@ -21,8 +21,8 @@ The model is optimized for:
 
 📊 Significant reductions in memory and training time are achieved with negligible loss (or even improvements) in performance.
 
-📁 **Source dataset** (Subtask B of SemEval 2024 Task 8):
-[https://github.com/mbzuai-nlp/SemEval2024-task8](https://github.com/mbzuai-nlp/SemEval2024-task8)
+📁 **Source dataset** [SemEval2024 Task 8 - Subtask B](https://github.com/mbzuai-nlp/SemEval2024-task8)
+
 
 ## Key Contributions
 
