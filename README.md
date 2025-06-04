@@ -52,9 +52,8 @@ The model is optimized for:
 
 ## Theoretical Guarantees
 
-* Lower empirical Rademacher complexity using LoRA + MTL:
-  $\hat{\mathfrak{R}}_{MTL}(n) < \hat{\mathfrak{R}}_{STL}(nT)$
-* Multitask + LoRA optimizes both generalization and speed
+* Calculated lower empirical Rademacher complexity using LoRA + MTL
+* Proven that Multitask + LoRA optimizes both generalization and speed
 
 ## Repository Contents
 
