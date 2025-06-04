@@ -71,7 +71,7 @@ The model is optimized for:
 
 ## License
 
-MIT
+---
 
 ## Citation
 
