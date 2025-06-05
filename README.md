@@ -90,7 +90,7 @@ If you use this code or article in your research, please cite:
 ```
 @article{2025aidetectorloramultitask,
   title={Advancements in AI-Generated Text Detection: Multi-Task Learning and Low-Rank Adaptation},
-  author={Remizova, Anna and Gritsai, German and Grabovoy, Andrey},
+  author={Remizova Anna, Gritsai German and Grabovoy Andrey},
   journal={Preprint},
   year={2025}
 }
