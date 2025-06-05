@@ -41,12 +41,23 @@ The model is optimized for:
 
 ## Performance Summary
 
-| Model                    | Task             | Accuracy | F1    | Precision | Recall |
-| ------------------------ | ---------------- | -------- | ----- | --------- | ------ |
-| Multihead DeBERTa        | Binary (H vs AI) | 0.957    | 0.971 | 0.977     | 0.970  |
-| Multihead DeBERTa + LoRA | Binary (H vs AI) | 0.952    | 0.969 | 0.956     | 0.984  |
-| Multihead DeBERTa        | Multiclass       | 0.943    | 0.896 | 0.895     | 0.893  |
-| Multihead DeBERTa + LoRA | Multiclass       | 0.950    | 0.898 | 0.898     | 0.899  |
+| Model                    | Task             | F1    | Precision | Recall |
+| ------------------------ | ---------------- | ----- | --------- | ------ |
+| Multihead DeBERTa        | Binary (H vs AI) | 0.971 | 0.977     | 0.970  |
+| Multihead DeBERTa + LoRA | Binary (H vs AI) | 0.969 | 0.956     | 0.984  |
+| Multihead DeBERTa        | Multiclass       | 0.896 | 0.895     | 0.893  |
+| Multihead DeBERTa + LoRA | Multiclass       | 0.898 | 0.898     | 0.899  |
+
+| **Model Name**                                                                 | **Runtime (sec)** |
+|--------------------------------------------------------------------------------|-------------------|
+| **Multiclass & Binary Classification, 5 epochs**                               |                   |
+| DeBERTa (baseline)                                                             | 8205              |
+| DeBERTa with LoRA                                                              | 4451              |
+| **Previous experiments: Binary Classification (Human vs. AI)**                 |                   |
+| DistilRoBERTa with LoRA (binary)                                               | 1616              |
+| **Previous experiments: Multiclass Classification**                            |                   |
+| DistilRoBERTa with LoRA                                                        | 3211              |
+| DistilRoBERTa (baseline)                                                       | 4041              |
 
 ⏱ **Speed-up**: LoRA model trained **45,6% faster** than baseline, with **1-3% better metrics**
 
