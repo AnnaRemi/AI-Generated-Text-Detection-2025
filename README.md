@@ -48,7 +48,7 @@ The model is optimized for:
 | Multihead DeBERTa        | Multiclass       | 0.943    | 0.896 | 0.895     | 0.893  |
 | Multihead DeBERTa + LoRA | Multiclass       | 0.950    | 0.898 | 0.898     | 0.899  |
 
-⏱ **Speed-up**: LoRA model trained **2-3x faster** than baseline, with **50% less memory use**
+⏱ **Speed-up**: LoRA model trained **45,6% faster** than baseline, with **1-3% better metrics**
 
 ## Theoretical Guarantees
 
